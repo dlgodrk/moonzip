@@ -42,3 +42,13 @@ next-env.d.ts
 
 # worktrees
 .worktrees/
+
+# python
+__pycache__/
+*.pyc
+book-list/temp/
+book-list/logs/
+book-list/raw/
+book-list/db/~$*
+book-list/scripts/__pycache__/
+book-list/scripts/.agents/

@@ -6,7 +6,6 @@ export type Grade = '1등급' | '2등급' | '3등급' | '4등급' | '5등급' | 
 export interface Series {
   id: string
   name: string
-  slug: string | null
   types: BookType[]
   created_at: string
   // computed

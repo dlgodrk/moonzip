@@ -1,62 +1,71 @@
 """
-교보문고_필터결과.xlsx → Supabase import
+교보문고_필터결과.xlsx → Supabase import (requests 버전)
 실행: python import_to_supabase.py
 """
 
 import pandas as pd
-from supabase import create_client
+import requests
+import json
 import os
 import re
 
 SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL") or input("Supabase URL: ")
 SERVICE_KEY  = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or input("Service Role Key: ")
 
-supabase = create_client(SUPABASE_URL, SERVICE_KEY)
+HEADERS = {
+    "apikey": SERVICE_KEY,
+    "Authorization": f"Bearer {SERVICE_KEY}",
+    "Content-Type": "application/json",
+    "Prefer": "resolution=merge-duplicates",
+}
+
+def rest(method, table, data=None, params=None):
+    url = f"{SUPABASE_URL}/rest/v1/{table}"
+    r = requests.request(method, url, headers=HEADERS, json=data, params=params)
+    if not r.ok:
+        print(f"  ERROR {r.status_code}: {r.text[:200]}")
+        return []
+    return r.json() if r.text else []
 
 BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
 FILTER_FILE = os.path.join(BASE_DIR, "../db/교보문고_필터결과.xlsx")
 
 def parse_types(type_str):
-    """'유형서, EBS' → ['유형서', 'EBS']"""
     if pd.isna(type_str) or not type_str:
         return []
     return [t.strip() for t in str(type_str).split(',') if t.strip()]
 
 def make_slug(name):
-    """시리즈명 → URL 슬러그 (한글 제거, 영문/숫자/하이픈만)"""
     s = re.sub(r'[가-힣]', '', name)
     s = re.sub(r'[^a-zA-Z0-9\s-]', '', s)
     s = re.sub(r'\s+', '-', s.strip()).lower()
     s = re.sub(r'-+', '-', s).strip('-')
-    return s[:80] or 'series'
+    return s[:80]  # 빈 문자열 반환 가능
 
 def main():
     df = pd.read_excel(FILTER_FILE)
     print(f"전체: {len(df)}개 로드")
 
-    # 1. series 테이블 insert
-    series_map = {}
+    # 1. series insert
     unique_series = df[['시리즈', '유형']].dropna(subset=['시리즈']).drop_duplicates(subset='시리즈')
-
     series_rows = []
     for _, row in unique_series.iterrows():
         name = str(row['시리즈']).strip()
-        types = parse_types(row.get('유형', ''))
         series_rows.append({
             'name': name,
-            'slug': make_slug(name),
-            'types': types,
+            'types': parse_types(row.get('유형', '')),
         })
 
     print(f"\n시리즈 {len(series_rows)}개 insert 중...")
-    res = supabase.table('series').upsert(series_rows, on_conflict='name').execute()
-    print(f"완료: {len(res.data)}개")
+    rest("POST", "series", series_rows)
+    print("완료")
 
-    # series id 맵 구성
-    all_series = supabase.table('series').select('id, name').execute()
-    series_map = {s['name']: s['id'] for s in all_series.data}
+    # series id 맵
+    all_series = rest("GET", "series", params={"select": "id,name", "limit": "1000"})
+    series_map = {s['name']: s['id'] for s in all_series}
+    print(f"시리즈 id 맵: {len(series_map)}개")
 
-    # 2. books 테이블 insert
+    # 2. books insert
     book_rows = []
     for _, row in df.iterrows():
         series_name = str(row.get('시리즈', '') or '').strip()
@@ -69,10 +78,9 @@ def main():
             price = None
 
         released_at = None
-        raw_date = row.get('출시일')
-        if pd.notna(raw_date):
+        if pd.notna(row.get('출시일')):
             try:
-                released_at = pd.to_datetime(raw_date).strftime('%Y-%m-%d')
+                released_at = pd.to_datetime(row['출시일']).strftime('%Y-%m-%d')
             except:
                 pass
 
@@ -96,7 +104,7 @@ def main():
     BATCH = 100
     for i in range(0, len(book_rows), BATCH):
         batch = book_rows[i:i+BATCH]
-        supabase.table('books').upsert(batch, on_conflict='id').execute()
+        rest("POST", "books", batch)
         print(f"  {i+len(batch)}/{len(book_rows)}")
 
     print(f"\n완료! series: {len(series_rows)}개, books: {len(book_rows)}개")

@@ -14,7 +14,7 @@ export async function searchSeries(params: SeriesSearchParams): Promise<Series[]
   let query = supabase
     .from('series')
     .select(`
-      id, name, slug, types, created_at,
+      id, name, types, created_at,
       reviews(difficulty),
       books(subject)
     `)
