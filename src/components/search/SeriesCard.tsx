@@ -1,36 +1,46 @@
 import Link from 'next/link'
 import { Series } from '@/lib/supabase/types'
 
+function DifficultyBadge({ value }: { value: number | null | undefined }) {
+  const v = value ?? 5
+  const color =
+    v <= 3 ? 'bg-blue-50 text-blue-600' :
+    v <= 6 ? 'bg-amber-50 text-amber-600' :
+             'bg-red-50 text-red-600'
+  return (
+    <div className={`flex flex-col items-center justify-center w-12 h-12 rounded-xl shrink-0 ${color}`}>
+      <span className="text-lg font-bold leading-none">{v.toFixed(1)}</span>
+    </div>
+  )
+}
+
 export function SeriesCard({ series }: { series: Series }) {
-  const diff = series.avg_difficulty
   const hasVotes = series.review_count && series.review_count > 0
 
   return (
-    <Link href={`/series/${series.id}`} className="block p-4 border border-zinc-200 rounded-xl hover:border-zinc-400 transition-colors">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-semibold text-base">{series.name}</h3>
-            <div className="flex gap-1">
-              {series.types.map(t => (
-                <span key={t} className="text-xs px-2 py-0.5 bg-zinc-100 rounded-full text-zinc-600">{t}</span>
-              ))}
-            </div>
-          </div>
-          {series.subjects && series.subjects.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {series.subjects.slice(0, 6).map(s => (
-                <span key={s} className="text-xs px-2 py-0.5 border border-zinc-200 rounded text-zinc-500">{s}</span>
-              ))}
-            </div>
+    <Link
+      href={`/series/${series.id}`}
+      className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-zinc-200/80 hover:border-zinc-300 hover:shadow-sm transition-all cursor-pointer"
+    >
+      <DifficultyBadge value={series.avg_difficulty} />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <h3 className="font-semibold text-zinc-900">{series.name}</h3>
+          {series.types.map(t => (
+            <span key={t} className="text-xs px-2 py-0.5 bg-zinc-100 rounded-full text-zinc-500 font-medium">{t}</span>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 mt-1">
+          {series.subjects && series.subjects.slice(0, 4).map(s => (
+            <span key={s} className="text-xs text-zinc-400">{s}</span>
+          ))}
+          {series.subjects && series.subjects.length > 4 && (
+            <span className="text-xs text-zinc-300">+{series.subjects.length - 4}</span>
           )}
         </div>
-        <div className="text-right shrink-0">
-          <div className="text-lg font-bold">{diff?.toFixed(1) ?? '5.0'}</div>
-          <div className="text-xs text-zinc-400">
-            {hasVotes ? `${series.review_count}명 투표` : '아직 투표 없음'}
-          </div>
-        </div>
+      </div>
+      <div className="text-xs text-zinc-400 shrink-0">
+        {hasVotes ? `${series.review_count}명` : '—'}
       </div>
     </Link>
   )
