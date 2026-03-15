@@ -66,7 +66,7 @@ export async function getSeriesById(id: string): Promise<Series | null> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('series')
-    .select('id, name, slug, types, created_at')
+    .select('id, name, types, created_at')
     .eq('id', id)
     .single()
   if (error) return null
