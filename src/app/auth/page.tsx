@@ -14,10 +14,9 @@ export default function AuthPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const supabase = createClient()
-
   const handleLogin = async () => {
     setLoading(true); setError('')
+    const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) { setError(error.message); setLoading(false); return }
     router.push('/')
@@ -26,6 +25,7 @@ export default function AuthPage() {
 
   const handleSignup = async () => {
     setLoading(true); setError('')
+    const supabase = createClient()
     const { error } = await supabase.auth.signUp({
       email, password,
       options: { data: { role } }
